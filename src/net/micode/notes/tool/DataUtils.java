@@ -35,9 +35,15 @@ import java.util.ArrayList;
 import java.util.HashSet;
 
 
+/**
+ * B 阶段一阅读标注 胡嘉豪 202430224010
+ * 通过 ContentResolver 集中处理便签批量操作、可见性查询和摘要读取。
+ * 小组件和提醒界面复用这些方法；调用者仍需处理返回值和 Provider 异常。
+ */
 public class DataUtils {
     public static final String TAG = "DataUtils";
     public static boolean batchDeleteNotes(ContentResolver resolver, HashSet<Long> ids) {
+        // B 阅读标注：空集合视为无需操作，系统根目录在构建删除操作时被跳过。
         if (ids == null) {
             Log.d(TAG, "the ids is null");
             return true;
@@ -59,6 +65,7 @@ public class DataUtils {
         }
         try {
             ContentProviderResult[] results = resolver.applyBatch(Notes.AUTHORITY, operationList);
+            // B 阅读标注：这里只检查首个结果，不能据此证明每条删除都影响了记录。
             if (results == null || results.length == 0 || results[0] == null) {
                 Log.d(TAG, "delete notes failed, ids:" + ids.toString());
                 return false;
@@ -82,6 +89,7 @@ public class DataUtils {
 
     public static boolean batchMoveToFolder(ContentResolver resolver, HashSet<Long> ids,
             long folderId) {
+        // B 阅读标注：批量移动同时置本地修改标记，以便后续同步识别变更。
         if (ids == null) {
             Log.d(TAG, "the ids is null");
             return true;
@@ -137,6 +145,7 @@ public class DataUtils {
     }
 
     public static boolean visibleInNoteDatabase(ContentResolver resolver, long noteId, int type) {
+        // B 阅读标注：提醒展示前用此方法检查便签类型及回收站状态。
         Cursor cursor = resolver.query(ContentUris.withAppendedId(Notes.CONTENT_NOTE_URI, noteId),
                 null,
                 NoteColumns.TYPE + "=? AND " + NoteColumns.PARENT_ID + "<>" + Notes.ID_TRASH_FOLER,
@@ -198,6 +207,7 @@ public class DataUtils {
     }
 
     public static HashSet<AppWidgetAttribute> getFolderNoteWidget(ContentResolver resolver, long folderId) {
+        // B 阅读标注：返回目录下的组件 ID 和类型；无记录或查询为空时可能返回 null。
         Cursor c = resolver.query(Notes.CONTENT_NOTE_URI,
                 new String[] { NoteColumns.WIDGET_ID, NoteColumns.WIDGET_TYPE },
                 NoteColumns.PARENT_ID + "=?",
@@ -225,6 +235,7 @@ public class DataUtils {
     }
 
     public static String getCallNumberByNoteId(ContentResolver resolver, long noteId) {
+        // B 阅读标注：空 Cursor 不进入下方 finally，资源关闭存在遗漏路径。
         Cursor cursor = resolver.query(Notes.CONTENT_DATA_URI,
                 new String [] { CallNote.PHONE_NUMBER },
                 CallNote.NOTE_ID + "=? AND " + CallNote.MIME_TYPE + "=?",
@@ -244,6 +255,8 @@ public class DataUtils {
     }
 
     public static long getNoteIdByPhoneNumberAndCallDate(ContentResolver resolver, String phoneNumber, long callDate) {
+        // B 阅读标注 Q-B-02：成功读取后直接 return，跳过下方 cursor.close()。
+        // 修复应在后续阶段把整个非空 Cursor 生命周期放入 try/finally。
         Cursor cursor = resolver.query(Notes.CONTENT_DATA_URI,
                 new String [] { CallNote.NOTE_ID },
                 CallNote.CALL_DATE + "=? AND " + CallNote.MIME_TYPE + "=? AND PHONE_NUMBERS_EQUAL("
@@ -265,6 +278,7 @@ public class DataUtils {
     }
 
     public static String getSnippetById(ContentResolver resolver, long noteId) {
+        // B 阅读标注：提醒弹窗从此处取摘要；空结果返回空串，null Cursor 则抛出异常。
         Cursor cursor = resolver.query(Notes.CONTENT_NOTE_URI,
                 new String [] { NoteColumns.SNIPPET },
                 NoteColumns.ID + "=?",
@@ -283,6 +297,7 @@ public class DataUtils {
     }
 
     public static String getFormattedSnippet(String snippet) {
+        // B 阅读标注：仅保留 trim 后的首行；null 输入仍返回 null。
         if (snippet != null) {
             snippet = snippet.trim();
             int index = snippet.indexOf('\n');
