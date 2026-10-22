@@ -30,8 +30,10 @@ import android.content.SharedPreferences;
 import android.graphics.Paint;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
+import android.text.Editable;
 import android.text.Spannable;
 import android.text.SpannableString;
+import android.text.TextWatcher;
 import android.text.TextUtils;
 import android.text.format.DateUtils;
 import android.text.style.BackgroundColorSpan;
@@ -131,6 +133,8 @@ public class NoteEditActivity extends Activity implements OnClickListener,
     private EditText mNoteEditor;
 
     private View mNoteEditorPanel;
+
+    private TextView mWordCount;                 // 底部实时字数统计器
 
     private WorkingNote mWorkingNote;
 
@@ -293,6 +297,7 @@ public class NoteEditActivity extends Activity implements OnClickListener,
          * is not ready
          */
         showAlertHeader();
+        refreshWordCount(); // 初始化时同步一次字数
     }
 
     private void showAlertHeader() {
@@ -395,6 +400,19 @@ public class NoteEditActivity extends Activity implements OnClickListener,
             mFontSizeId = ResourceParser.BG_DEFAULT_FONT_SIZE;
         }
         mEditTextList = (LinearLayout) findViewById(R.id.note_edit_list);
+        mWordCount = (TextView) findViewById(R.id.tv_word_count);
+        // 普通模式下监听编辑器文本变化，实时刷新字数
+        mNoteEditor.addTextChangedListener(new TextWatcher() {
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+            }
+
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+            }
+
+            public void afterTextChanged(Editable s) {
+                refreshWordCount();
+            }
+        });
     }
 
     @Override
@@ -430,7 +448,7 @@ public class NoteEditActivity extends Activity implements OnClickListener,
         if (id == R.id.btn_set_bg_color) {
             mNoteBgColorSelector.setVisibility(View.VISIBLE);
             findViewById(sBgSelectorSelectionMap.get(mWorkingNote.getBgColorId())).setVisibility(
-                    -                    View.VISIBLE);
+                    View.VISIBLE);
         } else if (sBgSelectorBtnsMap.containsKey(id)) {
             findViewById(sBgSelectorSelectionMap.get(mWorkingNote.getBgColorId())).setVisibility(
                     View.GONE);
@@ -507,48 +525,38 @@ public class NoteEditActivity extends Activity implements OnClickListener,
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        switch (item.getItemId()) {
-            case R.id.menu_new_note:
-                createNewNote();
-                break;
-            case R.id.menu_delete:
-                AlertDialog.Builder builder = new AlertDialog.Builder(this);
-                builder.setTitle(getString(R.string.alert_title_delete));
-                builder.setIcon(android.R.drawable.ic_dialog_alert);
-                builder.setMessage(getString(R.string.alert_message_delete_note));
-                builder.setPositiveButton(android.R.string.ok,
-                        new DialogInterface.OnClickListener() {
-                            public void onClick(DialogInterface dialog, int which) {
-                                deleteCurrentNote();
-                                finish();
-                            }
-                        });
-                builder.setNegativeButton(android.R.string.cancel, null);
-                builder.show();
-                break;
-            case R.id.menu_font_size:
-                mFontSizeSelector.setVisibility(View.VISIBLE);
-                findViewById(sFontSelectorSelectionMap.get(mFontSizeId)).setVisibility(View.VISIBLE);
-                break;
-            case R.id.menu_list_mode:
-                mWorkingNote.setCheckListMode(mWorkingNote.getCheckListMode() == 0 ?
-                        TextNote.MODE_CHECK_LIST : 0);
-                break;
-            case R.id.menu_share:
-                getWorkingText();
-                sendTo(this, mWorkingNote.getContent());
-                break;
-            case R.id.menu_send_to_desktop:
-                sendToDesktop();
-                break;
-            case R.id.menu_alert:
-                setReminder();
-                break;
-            case R.id.menu_delete_remind:
-                mWorkingNote.setAlertDate(0, false);
-                break;
-            default:
-                break;
+        int itemId = item.getItemId();
+        if (itemId == R.id.menu_new_note) {
+            createNewNote();
+        } else if (itemId == R.id.menu_delete) {
+            AlertDialog.Builder builder = new AlertDialog.Builder(this);
+            builder.setTitle(getString(R.string.alert_title_delete));
+            builder.setIcon(android.R.drawable.ic_dialog_alert);
+            builder.setMessage(getString(R.string.alert_message_delete_note));
+            builder.setPositiveButton(android.R.string.ok,
+                    new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialog, int which) {
+                            deleteCurrentNote();
+                            finish();
+                        }
+                    });
+            builder.setNegativeButton(android.R.string.cancel, null);
+            builder.show();
+        } else if (itemId == R.id.menu_font_size) {
+            mFontSizeSelector.setVisibility(View.VISIBLE);
+            findViewById(sFontSelectorSelectionMap.get(mFontSizeId)).setVisibility(View.VISIBLE);
+        } else if (itemId == R.id.menu_list_mode) {
+            mWorkingNote.setCheckListMode(mWorkingNote.getCheckListMode() == 0 ?
+                    TextNote.MODE_CHECK_LIST : 0);
+        } else if (itemId == R.id.menu_share) {
+            getWorkingText();
+            sendTo(this, mWorkingNote.getContent());
+        } else if (itemId == R.id.menu_send_to_desktop) {
+            sendToDesktop();
+        } else if (itemId == R.id.menu_alert) {
+            setReminder();
+        } else if (itemId == R.id.menu_delete_remind) {
+            mWorkingNote.setAlertDate(0, false);
         }
         return true;
     }
@@ -706,6 +714,7 @@ public class NoteEditActivity extends Activity implements OnClickListener,
 
         mNoteEditor.setVisibility(View.GONE);
         mEditTextList.setVisibility(View.VISIBLE);
+        refreshWordCount(); // 切换到清单模式后刷新字数
     }
 
     private Spannable getHighlightQueryResult(String fullText, String userQuery) {
@@ -753,6 +762,18 @@ public class NoteEditActivity extends Activity implements OnClickListener,
         edit.setOnTextViewChangeListener(this);
         edit.setIndex(index);
         edit.setText(getHighlightQueryResult(item, mUserQuery));
+        // 清单模式下监听每行文本变化，实时刷新总字数
+        edit.addTextChangedListener(new TextWatcher() {
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+            }
+
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+            }
+
+            public void afterTextChanged(Editable s) {
+                refreshWordCount();
+            }
+        });
         return view;
     }
 
@@ -779,6 +800,7 @@ public class NoteEditActivity extends Activity implements OnClickListener,
             mNoteEditor.setText(getHighlightQueryResult(mWorkingNote.getContent(), mUserQuery));
             mEditTextList.setVisibility(View.GONE);
             mNoteEditor.setVisibility(View.VISIBLE);
+            refreshWordCount(); // 切回普通模式后刷新字数
         }
     }
 
@@ -869,5 +891,23 @@ public class NoteEditActivity extends Activity implements OnClickListener,
 
     private void showToast(int resId, int duration) {
         Toast.makeText(this, resId, duration).show();
+    }
+
+    // 统计当前便签字数（不含换行）并刷新到底部统计器；兼容清单模式
+    private void refreshWordCount() {
+        if (mWordCount == null) {
+            return;
+        }
+        int count = 0;
+        if (mWorkingNote != null && mWorkingNote.getCheckListMode() == TextNote.MODE_CHECK_LIST) {
+            for (int i = 0; i < mEditTextList.getChildCount(); i++) {
+                NoteEditText edit = (NoteEditText) mEditTextList.getChildAt(i)
+                        .findViewById(R.id.et_edit_text);
+                count += edit.getText().toString().replace("\n", "").length();
+            }
+        } else if (mNoteEditor != null) {
+            count = mNoteEditor.getText().toString().replace("\n", "").length();
+        }
+        mWordCount.setText(getString(R.string.note_word_count, count));
     }
 }

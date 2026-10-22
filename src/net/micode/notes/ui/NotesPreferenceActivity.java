@@ -27,6 +27,7 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.os.Build;
 import android.os.Bundle;
 import android.preference.Preference;
 import android.preference.Preference.OnPreferenceClickListener;
@@ -81,7 +82,13 @@ public class NotesPreferenceActivity extends PreferenceActivity {
         mReceiver = new GTaskReceiver();
         IntentFilter filter = new IntentFilter();
         filter.addAction(GTaskSyncService.GTASK_SERVICE_BROADCAST_NAME);
-        registerReceiver(mReceiver, filter);
+        // Android 14(targetSdk 34) 起，注册自定义广播接收器必须指定 exported 标志，否则抛 SecurityException 崩溃
+        // 该广播仅由本应用的 GTaskSyncService 内部发出，故使用 RECEIVER_NOT_EXPORTED
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(mReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+        } else {
+            registerReceiver(mReceiver, filter);
+        }
 
         mOriAccounts = null;
         View header = LayoutInflater.from(this).inflate(R.layout.settings_header, null);

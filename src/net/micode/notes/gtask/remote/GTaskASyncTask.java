@@ -64,21 +64,28 @@ public class GTaskASyncTask extends AsyncTask<Void, String, Integer> {
     }
 
     private void showNotification(int tickerId, String content) {
-        Notification notification = new Notification(R.drawable.notification, mContext
-                .getString(tickerId), System.currentTimeMillis());
-        notification.defaults = Notification.DEFAULT_LIGHTS;
-        notification.flags = Notification.FLAG_AUTO_CANCEL;
-        PendingIntent pendingIntent;
+        Intent intent;
         if (tickerId != R.string.ticker_success) {
-            pendingIntent = PendingIntent.getActivity(mContext, 0, new Intent(mContext,
-                    NotesPreferenceActivity.class), 0);
-
+            intent = new Intent(mContext, NotesPreferenceActivity.class);
         } else {
-            pendingIntent = PendingIntent.getActivity(mContext, 0, new Intent(mContext,
-                    NotesListActivity.class), 0);
+            intent = new Intent(mContext, NotesListActivity.class);
         }
-        notification.setLatestEventInfo(mContext, mContext.getString(R.string.app_name), content,
-                pendingIntent);
+        int pendingFlags = PendingIntent.FLAG_UPDATE_CURRENT;
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+            pendingFlags |= PendingIntent.FLAG_IMMUTABLE;
+        }
+        PendingIntent pendingIntent = PendingIntent.getActivity(mContext, 0, intent, pendingFlags);
+
+        Notification notification = new Notification.Builder(mContext)
+                .setSmallIcon(R.drawable.notification)
+                .setTicker(mContext.getString(tickerId))
+                .setWhen(System.currentTimeMillis())
+                .setContentTitle(mContext.getString(R.string.app_name))
+                .setContentText(content)
+                .setContentIntent(pendingIntent)
+                .setDefaults(Notification.DEFAULT_LIGHTS)
+                .setAutoCancel(true)
+                .getNotification();
         mNotifiManager.notify(GTASK_SYNC_NOTIFICATION_ID, notification);
     }
 
