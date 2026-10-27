@@ -13,14 +13,6 @@ project.properties
 build/
 local.properties
 
-# Gradle 配置文件
-settings.gradle
-build.gradle
-gradle.properties
-gradlew
-gradlew.bat
-gradle/
-
 # Android Studio / IntelliJ 工程文件
 .idea/
 *.iml
