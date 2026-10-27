@@ -17,18 +17,20 @@
 package net.micode.notes.ui;
 
 import android.app.Activity;
-import android.app.AlarmManager;
+import android.Manifest;
 import android.app.AlertDialog;
-import android.app.PendingIntent;
 import android.app.SearchManager;
 import android.appwidget.AppWidgetManager;
-import android.content.ContentUris;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Paint;
 import android.os.Bundle;
+import android.os.Build;
+import android.content.pm.PackageManager;
+import android.net.Uri;
+import android.provider.Settings;
 import android.preference.PreferenceManager;
 import android.text.Spannable;
 import android.text.SpannableString;
@@ -59,6 +61,8 @@ import net.micode.notes.model.WorkingNote;
 import net.micode.notes.model.WorkingNote.NoteSettingChangedListener;
 import net.micode.notes.tool.DataUtils;
 import net.micode.notes.tool.ResourceParser;
+import net.micode.notes.tool.QuickReminder;
+import net.micode.notes.tool.ReminderScheduler;
 import net.micode.notes.tool.ResourceParser.TextAppearanceResources;
 import net.micode.notes.ui.DateTimePickerDialog.OnDateTimeSetListener;
 import net.micode.notes.ui.NoteEditText.OnTextViewChangeListener;
@@ -68,6 +72,7 @@ import net.micode.notes.widget.NoteWidgetProvider_4x;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.TimeZone;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -119,6 +124,8 @@ public class NoteEditActivity extends Activity implements OnClickListener,
     }
 
     private static final String TAG = "NoteEditActivity";
+    private static final int REQUEST_REMINDER_NOTIFICATION = 41;
+    private static final int REQUEST_EXACT_REMINDER = 42;
 
     private HeadViewHolder mNoteHeaderHolder;
 
@@ -430,7 +437,7 @@ public class NoteEditActivity extends Activity implements OnClickListener,
         if (id == R.id.btn_set_bg_color) {
             mNoteBgColorSelector.setVisibility(View.VISIBLE);
             findViewById(sBgSelectorSelectionMap.get(mWorkingNote.getBgColorId())).setVisibility(
-                    -                    View.VISIBLE);
+                    View.VISIBLE);
         } else if (sBgSelectorBtnsMap.containsKey(id)) {
             findViewById(sBgSelectorSelectionMap.get(mWorkingNote.getBgColorId())).setVisibility(
                     View.GONE);
@@ -554,13 +561,101 @@ public class NoteEditActivity extends Activity implements OnClickListener,
     }
 
     private void setReminder() {
-        DateTimePickerDialog d = new DateTimePickerDialog(this, System.currentTimeMillis());
+        getWorkingText();
+        if (TextUtils.isEmpty(mWorkingNote.getContent())) {
+            showToast(R.string.error_note_empty_for_clock);
+            return;
+        }
+        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[] { Manifest.permission.POST_NOTIFICATIONS },
+                    REQUEST_REMINDER_NOTIFICATION);
+            return;
+        }
+        if (!ReminderScheduler.canScheduleExactly(this) && Build.VERSION.SDK_INT >= 31) {
+            new AlertDialog.Builder(this).setTitle(R.string.reminder_exact_title)
+                    .setMessage(R.string.reminder_exact_message)
+                    .setPositiveButton(R.string.reminder_open_settings, new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialog, int which) {
+                            startActivityForResult(new Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
+                                    Uri.parse("package:" + getPackageName())), REQUEST_EXACT_REMINDER);
+                        }
+                    })
+                    .setNegativeButton(R.string.reminder_allow_delay, new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialog, int which) {
+                            showReminderChoices();
+                        }
+                    }).setNeutralButton(android.R.string.cancel, null).show();
+            return;
+        }
+        showReminderChoices();
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] results) {
+        super.onRequestPermissionsResult(requestCode, permissions, results);
+        if (requestCode == REQUEST_REMINDER_NOTIFICATION) {
+            if (results.length > 0 && results[0] == PackageManager.PERMISSION_GRANTED) {
+                setReminder();
+            } else {
+                showToast(R.string.reminder_notification_denied);
+            }
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_EXACT_REMINDER) {
+            showReminderChoices();
+        }
+    }
+
+    private void showReminderChoices() {
+        final QuickReminder.Preset[] presets = QuickReminder.Preset.values();
+        int[] names = { R.string.reminder_in_two_hours, R.string.reminder_tomorrow_morning,
+                R.string.reminder_next_week };
+        CharSequence[] items = new CharSequence[presets.length + 1];
+        long now = System.currentTimeMillis();
+        for (int i = 0; i < presets.length; i++) {
+            long date = QuickReminder.calculate(presets[i], now, TimeZone.getDefault());
+            items[i] = getString(names[i]) + "\n" + DateUtils.formatDateTime(this, date,
+                    DateUtils.FORMAT_SHOW_DATE | DateUtils.FORMAT_SHOW_TIME);
+        }
+        items[presets.length] = getString(R.string.reminder_custom_time);
+        new AlertDialog.Builder(this).setTitle(R.string.reminder_choose_time)
+                .setItems(items, new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int which) {
+                        if (which == presets.length) {
+                            showCustomReminder();
+                        } else {
+                            // Recalculate at selection time, rather than using an old dialog preview.
+                            applyReminder(QuickReminder.calculate(presets[which],
+                                    System.currentTimeMillis(), TimeZone.getDefault()));
+                        }
+                    }
+                }).setNegativeButton(android.R.string.cancel, null).show();
+    }
+
+    private void showCustomReminder() {
+        long initial = mWorkingNote.getAlertDate() > System.currentTimeMillis()
+                ? mWorkingNote.getAlertDate() : QuickReminder.calculate(
+                        QuickReminder.Preset.IN_TWO_HOURS, System.currentTimeMillis(), TimeZone.getDefault());
+        DateTimePickerDialog d = new DateTimePickerDialog(this, initial);
         d.setOnDateTimeSetListener(new OnDateTimeSetListener() {
             public void OnDateTimeSet(AlertDialog dialog, long date) {
-                mWorkingNote.setAlertDate(date	, true);
+                applyReminder(date);
             }
         });
         d.show();
+    }
+
+    private void applyReminder(long date) {
+        if (!QuickReminder.isFuture(date, System.currentTimeMillis())) {
+            showToast(R.string.reminder_time_in_past);
+            return;
+        }
+        mWorkingNote.setAlertDate(date, true);
     }
 
     /**
@@ -617,19 +712,14 @@ public class NoteEditActivity extends Activity implements OnClickListener,
          * User could set clock to an unsaved note, so before setting the
          * alert clock, we should save the note first
          */
-        if (!mWorkingNote.existInDatabase()) {
-            saveNote();
-        }
+        // Persist both setting and cancellation immediately, before installing the system alarm.
+        saveNote();
         if (mWorkingNote.getNoteId() > 0) {
-            Intent intent = new Intent(this, AlarmReceiver.class);
-            intent.setData(ContentUris.withAppendedId(Notes.CONTENT_NOTE_URI, mWorkingNote.getNoteId()));
-            PendingIntent pendingIntent = PendingIntent.getBroadcast(this, 0, intent, 0);
-            AlarmManager alarmManager = ((AlarmManager) getSystemService(ALARM_SERVICE));
             showAlertHeader();
             if(!set) {
-                alarmManager.cancel(pendingIntent);
+                ReminderScheduler.cancel(this, mWorkingNote.getNoteId());
             } else {
-                alarmManager.set(AlarmManager.RTC_WAKEUP, date, pendingIntent);
+                ReminderScheduler.schedule(this, mWorkingNote.getNoteId(), date);
             }
         } else {
             /**
