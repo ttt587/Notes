@@ -76,15 +76,17 @@ public class GTaskASyncTask extends AsyncTask<Void, String, Integer> {
             mNotifiManager.createNotificationChannel(channel);
         }
 
-        PendingIntent pendingIntent;
+        Intent intent;
         if (tickerId != R.string.ticker_success) {
-            pendingIntent = PendingIntent.getActivity(mContext, 0, new Intent(mContext,
-                    NotesPreferenceActivity.class), PendingIntent.FLAG_IMMUTABLE);
-
+            intent = new Intent(mContext, NotesPreferenceActivity.class);
         } else {
-            pendingIntent = PendingIntent.getActivity(mContext, 0, new Intent(mContext,
-                    NotesListActivity.class), PendingIntent.FLAG_IMMUTABLE);
+            intent = new Intent(mContext, NotesListActivity.class);
         }
+        int pendingFlags = PendingIntent.FLAG_UPDATE_CURRENT;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            pendingFlags |= PendingIntent.FLAG_IMMUTABLE;
+        }
+        PendingIntent pendingIntent = PendingIntent.getActivity(mContext, 0, intent, pendingFlags);
 
         Notification.Builder builder;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

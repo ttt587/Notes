@@ -13,8 +13,9 @@
 2. 在统一环境中完成 `clean + assembleDebug + lintDebug`，最终结果为 `BUILD SUCCESSFUL`。
 3. 修复第一阶段记录的两个同步模块问题，并补充现代 Android 构建及运行兼容修复。
 4. 新增 8 个可重复执行的源码级回归与仓库质量检查，全部通过。
-5. 将 lint 从 9 个 error、147 个 warning 降至 0 个 error、146 个 warning。
-6. 在 Android API 36 模拟器上完成最终 APK 的安装、冷启动、横竖屏切换和崩溃日志检查。
+5. 将 lint 从 9 个 error、147 个 warning 降至 0 个 error、130 个 warning。
+6. 在 Android API 36 模拟器上完成最终 APK 的安装、冷启动、设置页、实时字数、横竖屏切换和崩溃日志检查。
+7. 在组员 A 的 PR #3 合入 `develop` 后，将 `origin/develop`（`ed808ea`）合并回本分支，逐项解决 4 个冲突文件并完成全量复验。
 
 ## 2. 统一构建环境
 
@@ -60,7 +61,7 @@ python -m unittest discover -s tests/quality -p 'test_*.py' -v
 
 最终结果：
 
-- `BUILD SUCCESSFUL in 43s`
+- `BUILD SUCCESSFUL in 3m 19s`（重新下载 Gradle Wrapper 后的完整执行）
 - `40 actionable tasks: 40 executed`
 - Debug APK 正常生成
 - lint HTML/XML 报告正常生成
@@ -119,15 +120,14 @@ python -m unittest discover -s tests/quality -p 'test_*.py' -v
 | 阶段 | Error | Warning | 合计 |
 | --- | ---: | ---: | ---: |
 | 首次完整 lint | 9 | 147 | 156 |
-| 最终 lint | 0 | 146 | 146 |
+| 合并 `develop` 后最终 lint | 0 | 130 | 130 |
 
 最终剩余项均为 warning，主要分布如下：
 
 | lint ID | 数量 | 后续处理建议 |
 | --- | ---: | --- |
-| `RtlHardcoded` | 32 | 逐步将 left/right 替换为 start/end，并做 RTL 界面回归 |
+| `RtlHardcoded` | 33 | 逐步将 left/right 替换为 start/end，并做 RTL 界面回归 |
 | `ContentDescription` | 26 | 为可交互图片补充无障碍描述 |
-| `NonConstantResourceId` | 17 | 后续重构 switch/case，降低对 final R 的依赖 |
 | `TypographyEllipsis` | 15 | 统一使用省略号字符或资源 |
 | `UnusedResources` | 9 | 核实动态引用后再删除，避免误删旧主题资源 |
 | `InflateParams` | 6 | 补充父 ViewGroup 以生成正确 LayoutParams |
@@ -144,11 +144,15 @@ python -m unittest discover -s tests/quality -p 'test_*.py' -v
 | --- | --- |
 | `adb install -r -t` | `Success` |
 | 冷启动 `NotesListActivity` | `Status: ok` |
-| 冷启动耗时 | 3230 ms |
-| 前台 Activity | `net.micode.notes/.ui.NotesListActivity` |
+| 冷启动耗时 | 2747 ms |
+| 初始前台 Activity | `net.micode.notes/.ui.NotesListActivity` |
 | 竖屏页面 | 欢迎便签与“写便签”按钮完整显示 |
-| 横屏切换 | Activity 保持前台，布局完整 |
-| AndroidRuntime 致命日志 | `NONE` |
+| 实时字数 | 输入 `abc123`、换行、`XYZ`，显示 `Characters: 9`，换行未计数 |
+| 横屏切换 | 编辑内容保留，字数仍为 9，`NoteEditActivity` 保持前台 |
+| 设置页 | `NotesPreferenceActivity` 正常加载 |
+| Notes 应用 AndroidRuntime 致命日志 | `NONE` |
+
+API 36 模拟器镜像的 `com.google.android.bluetooth` 系统进程出现过 HCI 初始化失败日志；该进程与 Notes 应用包不同。复验时单独筛选 `AndroidRuntime:E`、`Process: net.micode.notes` 与 Notes 进程存活状态，均未发现 Notes 应用崩溃。
 
 ### 竖屏截图
 
@@ -158,11 +162,19 @@ python -m unittest discover -s tests/quality -p 'test_*.py' -v
 
 ![API 36 横屏主页面](evidence/phase2-main-landscape.png)
 
+### 合并后的实时字数竖屏截图
+
+![合并后的实时字数竖屏验证](evidence/phase2-merged-word-count-portrait.png)
+
+### 合并后的实时字数横屏截图
+
+![合并后的实时字数横屏验证](evidence/phase2-merged-word-count-landscape.png)
+
 ## 7. 最终 APK 信息
 
 - 文件：`build/outputs/apk/debug/Notes-debug.apk`（构建产物，不提交）
-- 大小：1,051,413 bytes
-- SHA-256：`79B7359566153669141443ECEA630D3400EE1EB73FD9FE09427EB195FDF22DF4`
+- 大小：1,052,406 bytes
+- SHA-256：`52EE6BA90A8658537A235E2E5C781B8C8443B07473C3F8447140A5E6BBCC9877`
 
 ## 8. 实际遇到的工程问题与解决过程
 
@@ -171,6 +183,8 @@ python -m unittest discover -s tests/quality -p 'test_*.py' -v
 3. 本机最初只有 SDK 35/36，缺少统一配置要求的 Platform 34 与 Build-Tools 34.0.0；授权 SDK 目录后由 Gradle 自动补装。
 4. 受控环境内无法访问 Hyper-V，API 36 AVD 返回 `0x80070005`；在获得权限后于宿主环境启动同一 AVD，最终完成真实安装测试。
 5. 自动 XML 检查最初误扫描 `build/` 中的 lint 中间文件；将范围收紧为 Manifest 与 `res/` 源文件后，确保检查在增量构建目录存在时仍稳定通过。
+6. 组员 A 的 PR #3 合入后，本分支与 `develop` 在 4 个文件发生内容冲突；按文件逐段比较双方改动并合并，没有用整文件覆盖任何一方。
+7. API 36 模拟器的蓝牙系统进程存在与应用无关的 HCI 初始化日志；验证结论只依据 Notes 包名、Notes 进程和 AndroidRuntime 日志，不将系统镜像噪声误记为应用故障。
 
 ## 9. 修改文件清单
 
@@ -188,11 +202,39 @@ python -m unittest discover -s tests/quality -p 'test_*.py' -v
 | `res/layout/note_edit.xml` | 明确编辑区纵向布局 |
 | `res/values/strings.xml` | 非语言型格式资源标记为不可翻译 |
 | `tests/quality/*.py` | 8 个回归与仓库质量检查 |
-| `docs/member-c/evidence/*.png` | API 36 横竖屏运行证据 |
+| `docs/member-c/evidence/*.png` | API 36 主页面及合并后实时字数横竖屏运行证据 |
 
 ## 10. 仍需团队关注的风险
 
 1. Google Tasks 同步依赖旧的非公开接口，接口现状不能仅通过本地冒烟测试证明可用；本阶段只修复可确定的本地控制流、认证令牌和兼容性问题。
-2. lint 仍有 146 个历史 warning，已按类别汇总；其中 RTL、无障碍描述和静态 Context 持有应进入后续质量迭代。
+2. lint 仍有 130 个历史 warning，已按类别汇总；其中 RTL、无障碍描述和静态 Context 持有应进入后续质量迭代。
 3. Android 13+ 若用户未授予通知权限，同步任务会继续执行但跳过通知；后续可在合适的 Activity 中增加用户可理解的权限申请流程。
 4. JDK 21 对 Java 8 source/target 的支持已进入弃用阶段；团队后续应选择固定较低 JDK toolchain，或评估提高源码级别。
+
+## 11. 合并 `develop` 后的冲突处理
+
+组员 A 的 PR #3 合入 `develop` 后，本分支执行了：
+
+```powershell
+git fetch origin
+git switch member/c-build-quality
+git merge origin/develop
+```
+
+合并基准为 `origin/develop` 的 `ed808ea`。4 个冲突文件及处理如下：
+
+| 冲突文件 | 处理结果 |
+| --- | --- |
+| `AndroidManifest.xml` | 保留统一构建所需的 `tools` 命名空间、Android 12+ `exported` 声明和通知权限；系统接收器保持最小暴露面，不覆盖 A 的 UI/字数资源 |
+| `gradle.properties` | 保留 A 的统一 Gradle 参数，同时保留旧项目在 AGP 8 下所需的 `android.nonFinalResIds=false` |
+| `GTaskASyncTask.java` | 合并 A 的 `FLAG_UPDATE_CURRENT` 与按版本添加 `FLAG_IMMUTABLE` 的写法，并保留通知渠道、Android 13+ 权限判断和现代 `Notification.Builder` |
+| `NotesPreferenceActivity.java` | 保留按 Android 版本注册接收器的兼容方法，Android 13+ 使用 `RECEIVER_NOT_EXPORTED`，旧版本仍可运行 |
+
+冲突解决后的复验结果：
+
+- 8/8 源码回归与仓库质量检查通过；
+- `clean assembleDebug lintDebug` 完整成功；
+- lint 为 0 error、130 warning；
+- A 的实时字数控件、资源和监听逻辑仍存在，并在 API 36 上通过输入、换行、横竖屏验证；
+- C 的设置页兼容修复通过实际页面启动验证；
+- Java/XML 中不存在未解决的冲突标记。

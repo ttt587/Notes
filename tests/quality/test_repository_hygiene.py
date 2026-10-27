@@ -59,7 +59,18 @@ class RepositoryHygieneTests(unittest.TestCase):
         )
 
         self.assertGreater(len(calls), 0)
-        self.assertEqual([], [call for call in calls if "FLAG_IMMUTABLE" not in call])
+        self.assertEqual(
+            [],
+            [
+                call
+                for call in calls
+                if "FLAG_IMMUTABLE" not in call and "pendingFlags" not in call
+            ],
+        )
+        self.assertIn(
+            "pendingFlags |= PendingIntent.FLAG_IMMUTABLE",
+            java_sources,
+        )
 
     def test_no_merge_conflict_markers_in_source_or_resources(self):
         markers = ("<<<<<<< ", "=======", ">>>>>>> ")
