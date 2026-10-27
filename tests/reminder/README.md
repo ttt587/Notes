@@ -42,4 +42,4 @@ adb shell am instrument -w net.micode.notes.test/net.micode.notes.tests.Reminder
 
 `-e mode after_restart` / `after_reboot` 各检查 1 个持久化断言，依赖默认模式保存的固定便签。**Instrumentation 启动和结束会强停目标进程**，所以系统闹钟恢复必须在实际重启完成后、再次开始 Instrumentation 之前，用 `dumpsys alarm` 检查。测试前正常打开应用，确认 `stopped=false`，执行真实 `adb reboot`，等待恢复的 `RTC_WAKEUP` 出现；不能只等待 `sys.boot_completed=1`，也不能把强停场景等同普通退出。
 
-运行截图保存在应用外部私有目录 `files/b-evidence`，原始记录见 `doc/members/b/test-results.md` 和 `evidence/logs/`。测试会创建名称以 B 开头的便签，只应在专用模拟器上运行。
+运行截图保存在应用外部私有目录 `files/b-evidence`，原始记录见 `doc/members/b/test-record.md` 和 `evidence/logs/`。测试会创建名称以 B 开头的便签，只应在专用模拟器上运行。

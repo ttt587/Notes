@@ -70,4 +70,4 @@ Android 13+ 先请求通知权限，拒绝则提示且不设置提醒。Android 
 
 ## 验证与证据
 
-详细测试表、命令、原始日志、前后界面与通知截图见 [test-results.md](test-results.md)。第二阶段 Word 报告保留原模板章节，第一阶段报告保留历史状态。未运行 SonarQube，不给出其评级或覆盖率。
+详细测试表、命令、原始日志、前后界面与通知截图见 [test-record.md](test-record.md)。第二阶段 Word 报告保留原模板章节，第一阶段报告保留历史状态。未运行 SonarQube，不给出其评级或覆盖率。

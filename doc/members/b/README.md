@@ -7,7 +7,7 @@
 | 成果 | 位置 |
 | --- | --- |
 | 类职责、时间规则、维护后流程、修改文件清单与集成依赖 | [phase-two-implementation.md](phase-two-implementation.md) |
-| 实际测试表、前后界面、系统闹钟证据、环境和排障记录 | [test-results.md](test-results.md) 与 [evidence](evidence/) |
+| 实际测试表、前后界面、系统闹钟证据、环境和排障记录 | [test-record.md](test-record.md)、[截图](assets/tests/) 与 [日志](evidence/logs/) |
 | 时间边界测试、Android 验收及复现说明 | [tests/reminder](../../../tests/reminder/README.md) |
 | 第二阶段泛读标注维护报告 | [胡嘉豪_泛读标注维护报告_第二阶段.docx](胡嘉豪_泛读标注维护报告_第二阶段.docx) |
 | 第二阶段质量分析报告 | [胡嘉豪_质量分析报告_第二阶段.docx](胡嘉豪_质量分析报告_第二阶段.docx) |
