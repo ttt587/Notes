@@ -235,16 +235,17 @@ public class DataUtils {
     }
 
     public static String getCallNumberByNoteId(ContentResolver resolver, long noteId) {
-        // B 阅读标注：空 Cursor 不进入下方 finally，资源关闭存在遗漏路径。
         Cursor cursor = resolver.query(Notes.CONTENT_DATA_URI,
                 new String [] { CallNote.PHONE_NUMBER },
                 CallNote.NOTE_ID + "=? AND " + CallNote.MIME_TYPE + "=?",
                 new String [] { String.valueOf(noteId), CallNote.CONTENT_ITEM_TYPE },
                 null);
 
-        if (cursor != null && cursor.moveToFirst()) {
+        if (cursor != null) {
             try {
-                return cursor.getString(0);
+                if (cursor.moveToFirst()) {
+                    return cursor.getString(0);
+                }
             } catch (IndexOutOfBoundsException e) {
                 Log.e(TAG, "Get call number fails " + e.toString());
             } finally {
@@ -255,8 +256,7 @@ public class DataUtils {
     }
 
     public static long getNoteIdByPhoneNumberAndCallDate(ContentResolver resolver, String phoneNumber, long callDate) {
-        // B 阅读标注 Q-B-02：成功读取后直接 return，跳过下方 cursor.close()。
-        // 修复应在后续阶段把整个非空 Cursor 生命周期放入 try/finally。
+        // Q-B-02: finally also closes the Cursor when a matching row returns early.
         Cursor cursor = resolver.query(Notes.CONTENT_DATA_URI,
                 new String [] { CallNote.NOTE_ID },
                 CallNote.CALL_DATE + "=? AND " + CallNote.MIME_TYPE + "=? AND PHONE_NUMBERS_EQUAL("
@@ -265,14 +265,15 @@ public class DataUtils {
                 null);
 
         if (cursor != null) {
-            if (cursor.moveToFirst()) {
-                try {
+            try {
+                if (cursor.moveToFirst()) {
                     return cursor.getLong(0);
-                } catch (IndexOutOfBoundsException e) {
-                    Log.e(TAG, "Get call note id fails " + e.toString());
                 }
+            } catch (IndexOutOfBoundsException e) {
+                Log.e(TAG, "Get call note id fails " + e.toString());
+            } finally {
+                cursor.close();
             }
-            cursor.close();
         }
         return 0;
     }
