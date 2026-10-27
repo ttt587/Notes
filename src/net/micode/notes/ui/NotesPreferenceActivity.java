@@ -16,6 +16,7 @@
 
 package net.micode.notes.ui;
 
+import android.annotation.SuppressLint;
 import android.accounts.Account;
 import android.accounts.AccountManager;
 import android.app.ActionBar;
@@ -82,17 +83,21 @@ public class NotesPreferenceActivity extends PreferenceActivity {
         mReceiver = new GTaskReceiver();
         IntentFilter filter = new IntentFilter();
         filter.addAction(GTaskSyncService.GTASK_SERVICE_BROADCAST_NAME);
-        // Android 14(targetSdk 34) 起，注册自定义广播接收器必须指定 exported 标志，否则抛 SecurityException 崩溃
-        // 该广播仅由本应用的 GTaskSyncService 内部发出，故使用 RECEIVER_NOT_EXPORTED
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(mReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
-        } else {
-            registerReceiver(mReceiver, filter);
-        }
+        registerSyncReceiver(filter);
 
         mOriAccounts = null;
         View header = LayoutInflater.from(this).inflate(R.layout.settings_header, null);
         getListView().addHeaderView(header, null, true);
+    }
+
+    @SuppressLint("UnspecifiedRegisterReceiverFlag")
+    private void registerSyncReceiver(IntentFilter filter) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(mReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+        } else {
+            // Receiver flags are unavailable before API 33; this receiver is app-local by action.
+            registerReceiver(mReceiver, filter);
+        }
     }
 
     @Override
