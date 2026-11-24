@@ -1,0 +1,21 @@
+// Optional test APK; production source sets and team SDK versions stay unchanged.
+// gradlew -I tests/pinning/acceptance.gradle assembleDebug assembleDebugAndroidTest
+gradle.beforeProject { project ->
+    project.afterEvaluate {
+        if (project.plugins.hasPlugin('com.android.application')) {
+            project.android {
+                testNamespace 'net.micode.notes.tests.pin'
+                defaultConfig {
+                    testApplicationId 'net.micode.notes.tests.pin'
+                    testInstrumentationRunner 'net.micode.notes.tests.PinInstrumentation'
+                }
+                sourceSets {
+                    androidTest {
+                        java.srcDirs = ['tests/pinning']
+                        manifest.srcFile 'tests/pinning/AndroidManifest.xml'
+                    }
+                }
+            }
+        }
+    }
+}

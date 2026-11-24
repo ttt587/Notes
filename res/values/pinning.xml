@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="menu_pin">Pin</string>
+    <string name="menu_unpin">Unpin</string>
+    <string name="pinned_label">Pinned note</string>
+    <string name="pinned_success">Selected notes pinned</string>
+    <string name="unpinned_success">Selected notes unpinned</string>
+    <string name="pin_failed">Could not update pinned notes</string>
+</resources>

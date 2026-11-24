@@ -53,6 +53,15 @@
                     android:layout_weight="1"
                     android:singleLine="true" />
 
+                <ImageView
+                    android:id="@+id/iv_pin_icon"
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:layout_marginRight="4dp"
+                    android:contentDescription="@string/pinned_label"
+                    android:src="@android:drawable/btn_star_big_on"
+                    android:visibility="gone" />
+
                 <TextView
                     android:id="@+id/tv_time"
                     android:layout_width="wrap_content"

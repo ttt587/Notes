@@ -33,6 +33,7 @@ import net.micode.notes.tool.ResourceParser.NoteItemBgResources;
 // 列表单行视图：自定义 LinearLayout，加载 note_item 布局，负责一行的展示与背景渲染
 public class NotesListItem extends LinearLayout {
     private ImageView mAlert;         // 提醒/通话记录图标
+    private ImageView mPin;
     private TextView mTitle;          // 标题（笔记摘要或文件夹名+计数）
     private TextView mTime;           // 相对修改时间
     private TextView mCallName;       // 通话记录笔记的联系人姓名
@@ -43,6 +44,7 @@ public class NotesListItem extends LinearLayout {
         super(context);
         inflate(context, R.layout.note_item, this); // 加载单行布局
         mAlert = (ImageView) findViewById(R.id.iv_alert_icon);
+        mPin = (ImageView) findViewById(R.id.iv_pin_icon);
         mTitle = (TextView) findViewById(R.id.tv_title);
         mTime = (TextView) findViewById(R.id.tv_time);
         mCallName = (TextView) findViewById(R.id.tv_name);
@@ -60,6 +62,8 @@ public class NotesListItem extends LinearLayout {
         }
 
         mItemData = data;
+        mPin.setVisibility(data.getType() == Notes.TYPE_NOTE && data.isPinned()
+                ? View.VISIBLE : View.GONE);
         if (data.getId() == Notes.ID_CALL_RECORD_FOLDER) {
             // 情况一：这就是“通话记录夹”本身
             mCallName.setVisibility(View.GONE);

@@ -165,6 +165,9 @@ public class Notes {
          * <P> Type : INTEGER (long) </P>
          */
         public static final String VERSION = "version";
+
+        /** Local display preference: 1 means pinned; not exported to Google Tasks. */
+        public static final String PINNED = "pinned";
     }
 
     public interface DataColumns {

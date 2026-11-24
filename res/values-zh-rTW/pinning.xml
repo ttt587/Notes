@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="menu_pin">置頂</string>
+    <string name="menu_unpin">取消置頂</string>
+    <string name="pinned_label">已置頂便籤</string>
+    <string name="pinned_success">已置頂所選便籤</string>
+    <string name="unpinned_success">已取消所選便籤置頂</string>
+    <string name="pin_failed">便籤置頂狀態更新失敗</string>
+</resources>
