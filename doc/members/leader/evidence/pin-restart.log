@@ -1,0 +1,3 @@
+PASS pin-survives-process-restart
+PASS restart-edit-time-preserved
+RESTART ACCEPTANCE: 2 passed

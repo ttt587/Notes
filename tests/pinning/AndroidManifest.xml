@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="net.micode.notes.tests.pin">
+    <uses-sdk android:minSdkVersion="14" android:targetSdkVersion="34" />
+    <instrumentation android:name="net.micode.notes.tests.PinInstrumentation"
+        android:targetPackage="net.micode.notes" />
+    <application android:label="Notes pin acceptance" android:debuggable="true" />
+</manifest>

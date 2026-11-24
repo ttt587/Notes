@@ -30,7 +30,7 @@ import net.micode.notes.data.Notes.NoteColumns;
 public class NotesDatabaseHelper extends SQLiteOpenHelper {
     private static final String DB_NAME = "note.db";
 
-    private static final int DB_VERSION = 4;
+    private static final int DB_VERSION = 5;
 
     public interface TABLE {
         public static final String NOTE = "note";
@@ -60,7 +60,8 @@ public class NotesDatabaseHelper extends SQLiteOpenHelper {
             NoteColumns.LOCAL_MODIFIED + " INTEGER NOT NULL DEFAULT 0," +
             NoteColumns.ORIGIN_PARENT_ID + " INTEGER NOT NULL DEFAULT 0," +
             NoteColumns.GTASK_ID + " TEXT NOT NULL DEFAULT ''," +
-            NoteColumns.VERSION + " INTEGER NOT NULL DEFAULT 0" +
+            NoteColumns.VERSION + " INTEGER NOT NULL DEFAULT 0," +
+            NoteColumns.PINNED + " INTEGER NOT NULL DEFAULT 0" +
         ")";
 
     private static final String CREATE_DATA_TABLE_SQL =
@@ -303,15 +304,14 @@ public class NotesDatabaseHelper extends SQLiteOpenHelper {
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
         boolean reCreateTriggers = false;
-        boolean skipV2 = false;
-
         if (oldVersion == 1) {
+            // The legacy v1 path recreates tables using the current schema.
+            // Do not run ALTER TABLE on those already-current tables again.
             upgradeToV2(db);
-            skipV2 = true; // this upgrade including the upgrade from v2 to v3
-            oldVersion++;
+            return;
         }
 
-        if (oldVersion == 2 && !skipV2) {
+        if (oldVersion == 2) {
             upgradeToV3(db);
             reCreateTriggers = true;
             oldVersion++;
@@ -319,6 +319,12 @@ public class NotesDatabaseHelper extends SQLiteOpenHelper {
 
         if (oldVersion == 3) {
             upgradeToV4(db);
+            oldVersion++;
+        }
+
+        if (oldVersion == 4) {
+            db.execSQL("ALTER TABLE " + TABLE.NOTE + " ADD COLUMN " + NoteColumns.PINNED
+                    + " INTEGER NOT NULL DEFAULT 0");
             oldVersion++;
         }
 

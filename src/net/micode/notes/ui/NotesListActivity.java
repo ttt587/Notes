@@ -62,6 +62,7 @@ import android.widget.Toast;
 
 import net.micode.notes.R;
 import net.micode.notes.data.Notes;
+import net.micode.notes.data.NotePinning;
 import net.micode.notes.data.Notes.NoteColumns;
 import net.micode.notes.gtask.remote.GTaskSyncService;
 import net.micode.notes.model.WorkingNote;
@@ -238,6 +239,8 @@ public class NotesListActivity extends Activity implements OnClickListener, OnIt
         public boolean onCreateActionMode(ActionMode mode, Menu menu) {
             getMenuInflater().inflate(R.menu.note_list_options, menu);
             menu.findItem(R.id.delete).setOnMenuItemClickListener(this);
+            menu.findItem(R.id.pin).setOnMenuItemClickListener(this);
+            menu.findItem(R.id.unpin).setOnMenuItemClickListener(this);
             mMoveMenu = menu.findItem(R.id.move);
             // 通话记录夹内或无用户文件夹时隐藏“移动”
             if (mFocusNoteDataItem.getParentId() == Notes.ID_CALL_RECORD_FOLDER
@@ -352,6 +355,8 @@ public class NotesListActivity extends Activity implements OnClickListener, OnIt
                 builder.show();
             } else if (itemId == R.id.move) {
                 startQueryDestinationFolders(); // 查询目标文件夹并弹选择框
+            } else if (itemId == R.id.pin || itemId == R.id.unpin) {
+                setSelectedNotesPinned(itemId == R.id.pin);
             } else {
                 return false;
             }
@@ -433,7 +438,43 @@ public class NotesListActivity extends Activity implements OnClickListener, OnIt
         mBackgroundQueryHandler.startQuery(FOLDER_NOTE_LIST_QUERY_TOKEN, null,
                 Notes.CONTENT_NOTE_URI, NoteItemData.PROJECTION, selection, new String[] {
                         String.valueOf(mCurrentFolderId)
-                }, NoteColumns.TYPE + " DESC," + NoteColumns.MODIFIED_DATE + " DESC");
+                }, NotePinning.SORT_ORDER);
+    }
+
+    private void setSelectedNotesPinned(final boolean pinned) {
+        // Snapshot IDs before ending choice mode, which clears adapter selection.
+        final HashSet<Long> selected = new HashSet<Long>(mNotesListAdapter.getSelectedItemIds());
+        if (selected.isEmpty()) {
+            return;
+        }
+        mModeCallBack.finishActionMode();
+        new AsyncTask<Void, Void, Integer>() {
+            @Override
+            protected Integer doInBackground(Void... unused) {
+                try {
+                    return NotePinning.setPinned(mContentResolver, selected, pinned);
+                } catch (android.os.RemoteException e) {
+                    Log.e(TAG, "Pin operation failed", e);
+                } catch (android.content.OperationApplicationException e) {
+                    Log.e(TAG, "Pin operation failed", e);
+                } catch (RuntimeException e) {
+                    Log.e(TAG, "Pin operation failed", e);
+                }
+                return -1;
+            }
+
+            @Override
+            protected void onPostExecute(Integer updated) {
+                if (isFinishing()) {
+                    return;
+                }
+                int message = updated > 0
+                        ? (pinned ? R.string.pinned_success : R.string.unpinned_success)
+                        : R.string.pin_failed;
+                Toast.makeText(NotesListActivity.this, message, Toast.LENGTH_SHORT).show();
+                startAsyncNotesListQuery();
+            }
+        }.execute();
     }
 
     // 异步查询处理器：按 token 将游标分派给列表刷新或文件夹选择弹窗
